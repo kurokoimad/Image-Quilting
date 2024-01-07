@@ -2,7 +2,7 @@ from math import ceil
 from random import randint
 import matplotlib.pyplot as plt
 import numpy as np
-from Quilting.border_cutting import * 
+from Quilting.synthesis_error import * 
 from Quilting.dpMinCut import *  
 
 class textureMain():
@@ -18,7 +18,6 @@ class textureMain():
         self.tolerance_factor = tolerance_factor
 
     def generateOutputMask(self):
-        # Initialize an output image mask with zeros
         outimg = np.zeros((self.H1, self.W1, 3))
         return outimg
 
@@ -28,35 +27,33 @@ class textureMain():
             b = r = self.block_size
         elif (i == 0 and j != 0):
             b = self.block_size
-            l = (j-1)*self.block_size - (j-1)*self.overlap_size
+            l = (j-1) * self.block_size - (j-1) * self.overlap_size
             r = l + self.block_size
         elif (j == 0 and i != 0):
             r = self.block_size
-            t = (i-1)*self.block_size - (i-1)*self.overlap_size
+            t = (i-1) * self.block_size - (i-1) * self.overlap_size
             b = t + self.block_size
         else:
-            l = (j-1)*self.block_size - (j-1)*self.overlap_size
-            r = l + self.block_size
-            t = (i-1)*self.block_size - (i-1)*self.overlap_size
+            l = (j-1) * self.block_size - (j-1) * self.overlap_size
+            r = l + self.block_size 
+            t = (i-1) * self.block_size - (i-1) * self.overlap_size
             b = t + self.block_size
 
         return [l, r, t, b]
 
     def createTexture(self):
-        outimg = self.generateOutputMask()  # Initialize output image mask
+        outimg = self.generateOutputMask()
         img_np = self.img
 
         for i in range(0, self.num_blocks):
             for j in range(0, self.num_blocks):
-                # Calculate overlap regions
                 ov_left, ov_right, ov_top, ov_bottom = self.overlaps(i, j)
 
-                # Initialize an error matrix for the synthesis process
-                E = np.zeros(
-                    (self.H - self.block_size, self.W - self.block_size))
+                
+                E = np.zeros((self.H - self.block_size, self.W - self.block_size)) #error matrix
 
                 if (i == 0 and j == 0):
-                    # If it's the first block, randomly select a region from the input image
+                    #if first block, select a region from the image randomly
                     row_id = randint(0, self.H - self.block_size)
                     col_id = randint(0, self.W - self.block_size)
                     temp = img_np[row_id:row_id+self.block_size,
@@ -65,21 +62,21 @@ class textureMain():
                     continue
 
                 elif (i == 0):
-                    # If it's in the first row, synthesize based on the left overlap
+                    #if it's in the first row, synthesize based on the left overlap (Vertically)
                     sliced_cut = outimg[ov_top:ov_bottom,
                                         ov_left:ov_left + self.overlap_size, :]
                     E = synthesis_error(
                         img_np, sliced_cut, self.block_size, self.overlap_size, "left")
 
                 elif (j == 0):
-                    # If it's in the first column, synthesize based on the top overlap
+                    #if it's in the first column, synthesize based on the top overlap (Horizontally)
                     sliced_cut = outimg[ov_top:ov_top +
                                         self.overlap_size, ov_left:ov_right, :]
                     E = synthesis_error(
                         img_np, sliced_cut, self.block_size, self.overlap_size, "up")
 
                 else:
-                    # If it's in the middle, synthesize based on both left and top overlaps
+                    #if it's in the middle, synthesize based on both left and top overlaps (L Shape)
                     sliced_cut = outimg[ov_top:ov_bottom,
                                         ov_left:ov_left + self.overlap_size, :]
                     E = synthesis_error(
@@ -95,7 +92,7 @@ class textureMain():
                     E = E - synthesis_error(
                         img_np, sliced_cut, self.block_size, self.overlap_size, "corner")
 
-                # Find the minimum error and its location
+                #find the minimum error 
                 mn_E = np.min(E)
                 E_col = np.reshape(E, (E.shape[0]*E.shape[1], 1))
                 matches = np.asarray(
@@ -106,10 +103,10 @@ class textureMain():
                 rr = int(im_r[randint(0, im_r.shape[1]-1)][0])
                 cc = int(im_c[randint(0, im_c.shape[1]-1)][0])
 
-                # Initialize a boundary matrix for minCut
+                #boundary matrix for minCut
                 boundary = np.ones((self.block_size, self.block_size))
 
-                # Apply minCut horizontally if not in the first row
+                #apply minCut horizontally if not in the first row
                 if(i != 0):
                     img_overlap = img_np[rr:rr +
                                          self.overlap_size, cc:cc+self.block_size, :]
@@ -119,7 +116,7 @@ class textureMain():
                     boundary[0:self.overlap_size,
                              0:self.block_size] = np.double(cut >= 0)
 
-                # Apply minCut vertically if not in the first column
+                #apply minCut vertically if not in the first column
                 if(j != 0):
                     img_overlap = img_np[rr:rr +
                                          self.block_size, cc:cc+self.overlap_size, :]
@@ -129,10 +126,10 @@ class textureMain():
                     boundary[0:self.block_size, 0:self.overlap_size] = np.multiply(
                         boundary[0:self.block_size, 0:self.overlap_size], np.double(cut >= 0))
 
-                # Repeat the boundary matrix along the third axis to match the image channels
+                #repeat boundary matrix to match the image
                 boundary = np.repeat(boundary[:, :, np.newaxis], 3, axis=2)
 
-                # Apply border cutting based on the boundary matrix
+                #apply border cutting based on the boundary matrix
                 border = np.multiply(
                     outimg[ov_top:ov_bottom, ov_left:ov_right, :], (boundary == 0))
                 right_part = np.multiply(
