@@ -1,5 +1,5 @@
 # Project Name 
-The project was awarded a grade of 2.0 (or 100%) 
+The project was awarded a grade of 2.0 (or 80%) 
 
 Texture Synthesis Mit Image-Quilting 
 
